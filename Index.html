@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pañalera BebeFinn - 8 años cerca tuyo</title>
+    <title>Pañalera Bebé Feliz - Gestión Profesional</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
@@ -194,26 +194,53 @@
     </div>
 </div>
 
+<!-- SDK DE SUPABASE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-let productos = JSON.parse(localStorage.getItem('panal_prod') || '[]');
+// CONFIGURACION SUPABASE
+const supabaseUrl = 'https://vrwigdynqqffrohesueo.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyd2lnZHlucXFmZnJvaGVzdWVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MjYxODMsImV4cCI6MjA5MzUwMjE4M30.CihhxLpAiFhnAUuG0z35db-bvX5lD15GbXuueoVMeM8';
+const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+let productos = [];
 let pedidos = JSON.parse(localStorage.getItem('panal_pedidos') || '[]');
 let config = JSON.parse(localStorage.getItem('panal_conf') || JSON.stringify({
-    nombre: 'Pañalera BebeFinn', tel: '5491100000000', alias: 'PAGO.BEBE', mpToken: ''
+    nombre: 'Pañalera Bebé Feliz', tel: '5491100000000', alias: 'PAGO.BEBE', mpToken: ''
 }));
 let carrito = [];
 
-function init() {
+async function init() {
     document.getElementById('nav-nombre').innerHTML = config.nombre + '<span>Tienda Online</span>';
     document.getElementById('conf-nombre').value = config.nombre;
     document.getElementById('conf-tel').value = config.tel;
     document.getElementById('conf-alias').value = config.alias;
     document.getElementById('conf-token').value = config.mpToken || '';
-    renderCategorias();
-    renderProductos();
+    
+    await cargarProductosDesdeBD();
 }
 
-// LOGICA PRODUCTOS
-function guardarProducto() {
+async function cargarProductosDesdeBD() {
+    const { data, error } = await _supabase
+        .from('productos')
+        .select('*')
+        .order('id', { ascending: false });
+
+    if (error) {
+        console.error('Error cargando productos:', error);
+        toast('Error al conectar con la base de datos');
+    } else {
+        productos = data || [];
+        renderCategorias();
+        renderProductos();
+        if (document.getElementById('admin-main').style.display !== 'none') {
+            renderAdminProductos();
+        }
+    }
+}
+
+// LOGICA PRODUCTOS (SUPABASE)
+async function guardarProducto() {
     const editId = document.getElementById('edit-id').value;
     const nombre = document.getElementById('p-nombre').value;
     const precio = document.getElementById('p-precio').value;
@@ -221,9 +248,8 @@ function guardarProducto() {
 
     if(!nombre || !precio) return toast('Completa nombre y precio');
 
-    const procesar = (imgBase) => {
+    const procesar = async (imgBase) => {
         const datos = {
-            id: editId ? parseInt(editId) : Date.now(),
             codigo: document.getElementById('p-codigo').value,
             nombre,
             precio: parseFloat(precio),
@@ -232,23 +258,40 @@ function guardarProducto() {
             img: imgBase || (editId ? productos.find(x => x.id == editId).img : null)
         };
 
+        let res;
         if(editId) {
-            const idx = productos.findIndex(p => p.id == editId);
-            productos[idx] = datos;
-            toast('Actualizado');
+            res = await _supabase.from('productos').update(datos).eq('id', editId);
+            if (!res.error) toast('Actualizado en Nube');
         } else {
-            productos.unshift(datos);
-            toast('Creado');
+            res = await _supabase.from('productos').insert([datos]);
+            if (!res.error) toast('Creado en Nube');
         }
-        localStorage.setItem('panal_prod', JSON.stringify(productos));
-        limpiarForm(); renderAdminProductos(); renderProductos(); renderCategorias();
+
+        if (res.error) {
+            console.error(res.error);
+            toast('Error al guardar en BD');
+        } else {
+            limpiarForm(); 
+            await cargarProductosDesdeBD();
+        }
     };
 
     if(file) {
         const reader = new FileReader();
-        reader.onload = e => procesar(e.target.result);
+        reader.onload = async e => await procesar(e.target.result);
         reader.readAsDataURL(file);
-    } else procesar(null);
+    } else await procesar(null);
+}
+
+async function eliminarP(id) { 
+    if(confirm('¿Borrar de forma permanente en la base de datos?')) { 
+        const { error } = await _supabase.from('productos').delete().eq('id', id);
+        if (error) toast('Error al eliminar');
+        else {
+            toast('Eliminado');
+            await cargarProductosDesdeBD();
+        }
+    } 
 }
 
 function prepararEdicion(id) {
@@ -314,6 +357,7 @@ function showTab(id, btn) { document.querySelectorAll('.tab-content').forEach(c 
 function agregarCarrito(id) { const p = productos.find(x => x.id==id); const ex = carrito.find(x => x.id==id); if(ex) ex.cant++; else carrito.push({...p, cant:1}); actualizarCarrito(); toast('Añadido 🛒'); }
 function actualizarCarrito() { document.getElementById('badge').textContent = carrito.reduce((s,i)=>s+i.cant,0); document.getElementById('carrito-total').textContent = '$ ' + formatNum(carrito.reduce((s,i)=>s+(i.precio*i.cant),0)); document.getElementById('carrito-items').innerHTML = carrito.map(i => `<div style="padding:10px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between"><span>${i.nombre} x${i.cant}</span><button onclick="quitarCarrito(${i.id})" style="border:none;background:none">🗑️</button></div>`).join(''); }
 function quitarCarrito(id) { carrito = carrito.filter(i => i.id !== id); actualizarCarrito(); }
+
 function renderProductos(filtrados = null) {
     const lista = filtrados || productos;
     document.getElementById('productos-grid').innerHTML = lista.map(p => `
@@ -328,10 +372,11 @@ function renderProductos(filtrados = null) {
         </div>
     `).join('');
 }
+
 function renderAdminProductos() {
     document.getElementById('admin-lista-productos').innerHTML = productos.map(p => `<tr><td>${p.codigo||'-'}</td><td>${p.nombre}</td><td>$${formatNum(p.precio)}</td><td>${p.stock}</td><td><button class="btn-edit" onclick="prepararEdicion(${p.id})">Editar</button> <button class="btn-del" onclick="eliminarP(${p.id})">🗑️</button></td></tr>`).join('');
 }
-function eliminarP(id) { if(confirm('¿Borrar?')) { productos = productos.filter(p => p.id !== id); localStorage.setItem('panal_prod', JSON.stringify(productos)); renderAdminProductos(); renderProductos(); } }
+
 function renderPedidosAdmin() { document.getElementById('lista-pedidos-admin').innerHTML = pedidos.map(p => `<div style="background:#f8f9fa;padding:15px;border-radius:10px;margin-bottom:10px;border:1px solid #eee"><b>${p.cliente}</b> - ${p.fecha}<br><small>${p.pago.toUpperCase()}</small><br><b>$ ${formatNum(p.total)}</b></div>`).join('') || 'Sin pedidos.'; }
 function irCheckout() { if(carrito.length) abrirModal('modal-checkout'); }
 function renderCategorias() { const cats = ['Todos', ...new Set(productos.map(p => p.cat))]; document.getElementById('cats-grid').innerHTML = cats.map(c => `<div class="cat-pill" onclick="renderProductos(productos.filter(p => p.cat === '${c}'))">${c}</div>`).join(''); }
