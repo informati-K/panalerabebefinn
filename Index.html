@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pañalera Bebé Feliz - Gestión Profesional</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{
+            --rosa:#f472b6;--rosa-dark:#ec4899;--rosa-light:#fce7f3;--rosa-pale:#fdf2f8;
+            --lila:#a78bfa;--lila-dark:#7c3aed;--lila-light:#ede9fe;
+            --texto:#1a0a2e;--texto-suave:#6b7280;--blanco:#fff;
+            --radio:16px;
+        }
+        body{font-family:'DM Sans',sans-serif;background:#fdf8ff;color:var(--texto);min-height:100vh}
+
+        /* NAVBAR */
+        .navbar{background:rgba(255,255,255,0.95);backdrop-filter:blur(12px);border-bottom:1px solid #fce7f3;position:sticky;top:0;z-index:200;box-shadow:0 2px 20px rgba(244,114,182,0.1)}
+        .nav-inner{max-width:1200px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:20px}
+        .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+        .nav-logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--rosa),var(--lila));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+        .nav-nombre{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--rosa-dark);line-height:1}
+        .nav-nombre span{font-size:11px;font-weight:400;color:var(--texto-suave);display:block}
+        .nav-search{flex:1;max-width:400px;position:relative}
+        .nav-search input{width:100%;padding:10px 16px 10px 40px;border:1.5px solid #fce7f3;border-radius:50px;font-size:14px;outline:none;background:#fdf2f8}
+        .nav-actions{display:flex;gap:10px;margin-left:auto}
+        .btn-carrito{padding:10px 20px;background:linear-gradient(135deg,var(--rosa),var(--lila));color:#fff;border:none;border-radius:50px;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:8px}
+        .badge{background:#fff;color:var(--rosa-dark);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px}
+
+        /* ADMIN TABS */
+        .admin-tabs{display:flex;gap:5px;margin-bottom:20px;background:#f1f5f9;padding:5px;border-radius:12px}
+        .tab-btn{flex:1;padding:10px;border:none;border-radius:8px;cursor:pointer;font-weight:600;background:transparent;color:var(--texto-suave);transition:0.3s}
+        .tab-btn.active{background:#fff;color:var(--lila-dark);box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+
+        /* CATALOGO */
+        .seccion{padding:40px 24px}
+        .container{max-width:1200px;margin:0 auto}
+        .cats-grid{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:30px}
+        .cat-pill{padding:8px 18px;background:#fff;border:1.5px solid #fce7f3;border-radius:50px;cursor:pointer;font-size:14px}
+        .cat-pill.activa{background:var(--rosa-dark);color:#fff;border-color:transparent}
+        .productos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:24px}
+        .producto-card{background:#fff;border-radius:var(--radio);overflow:hidden;border:1.5px solid #f9e8f5;transition:0.3s}
+        .producto-img{width:100%;height:200px;background:#fef2f2;display:flex;align-items:center;justify-content:center;overflow:hidden}
+        .producto-img img{width:100%;height:100%;object-fit:cover}
+        .producto-body{padding:16px}
+        .btn-agregar{width:100%;padding:10px;background:linear-gradient(135deg,var(--rosa-dark),var(--lila-dark));color:#fff;border:none;border-radius:50px;cursor:pointer;font-weight:600}
+
+        /* OVERLAYS */
+        .admin-overlay, .carrito-overlay, .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:300;display:none;backdrop-filter:blur(4px);padding:20px;overflow-y:auto}
+        .visible{display:flex !important}
+        .admin-panel{background:#fff;border-radius:20px;width:100%;max-width:1000px;margin:auto;padding:30px}
+        .carrito-panel{position:fixed;top:0;right:-420px;width:400px;height:100vh;background:#fff;z-index:301;display:flex;flex-direction:column;transition:0.4s}
+        .carrito-panel.abierto{right:0}
+
+        /* TABLES & FORMS */
+        .admin-table{width:100%;border-collapse:collapse}
+        .admin-table th, .admin-table td{padding:12px;border-bottom:1px solid #eee;text-align:left;font-size:14px}
+        .form-group{margin-bottom:15px}
+        .form-group label{display:block;font-size:12px;font-weight:600;margin-bottom:5px}
+        .form-group input, .form-group select{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-family:inherit}
+        .btn-edit{background:var(--lila-light);color:var(--lila-dark);border:none;padding:5px 10px;border-radius:5px;cursor:pointer}
+        .btn-del{background:#fee2e2;color:#ef4444;border:none;padding:5px 10px;border-radius:5px;cursor:pointer}
+        
+        .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:12px 25px;border-radius:50px;z-index:1000;display:none}
+    </style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <div class="nav-inner">
+        <a class="nav-logo" href="#">
+            <div class="nav-logo-icon">🍼</div>
+            <div class="nav-nombre" id="nav-nombre">Pañalera<span>Cargando...</span></div>
+        </a>
+        <div class="nav-search"><input type="text" id="buscador" placeholder="Buscar por nombre o código..." oninput="buscarProductos()"></div>
+        <div class="nav-actions">
+            <button onclick="abrirAdmin()" style="border:none;background:none;cursor:pointer">⚙️ Admin</button>
+            <button class="btn-carrito" onclick="toggleCarrito()">🛒 <span class="badge" id="badge">0</span></button>
+        </div>
+    </div>
+</nav>
+
+<!-- CATALOGO -->
+<section class="seccion">
+    <div class="container">
+        <div class="cats-grid" id="cats-grid"></div>
+        <div class="productos-grid" id="productos-grid"></div>
+    </div>
+</section>
+
+<!-- PANEL ADMIN -->
+<div class="admin-overlay" id="admin-overlay">
+    <div class="admin-panel">
+        <div style="display:flex;justify-content:space-between;margin-bottom:20px">
+            <h2>Panel Administrativo</h2>
+            <button onclick="cerrarAdmin()" style="border:none;background:none;font-size:20px;cursor:pointer">✕</button>
+        </div>
+
+        <div id="admin-login" style="text-align:center;padding:40px">
+            <input type="password" id="admin-pwd" placeholder="Clave admin123" style="padding:10px;border-radius:8px;border:1px solid #ddd">
+            <button class="btn-agregar" onclick="loginAdmin()" style="width:auto;padding:10px 20px;margin-left:10px">Entrar</button>
+        </div>
+
+        <div id="admin-main" style="display:none">
+            <div class="admin-tabs">
+                <button class="tab-btn active" onclick="showTab('tab-productos', this)">📦 Productos</button>
+                <button class="tab-btn" onclick="showTab('tab-pedidos', this)">📑 Pedidos</button>
+                <button class="tab-btn" onclick="showTab('tab-config', this)">🎨 Ajustes & API</button>
+            </div>
+
+            <!-- TAB PRODUCTOS -->
+            <div id="tab-productos" class="tab-content">
+                <div id="form-contenedor" style="background:var(--rosa-pale);padding:20px;border-radius:15px;margin-bottom:20px;border:1px solid var(--rosa-light)">
+                    <h3 id="form-titulo">Cargar Nuevo Producto</h3><br>
+                    <input type="hidden" id="edit-id">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px">
+                        <div class="form-group"><label>Código de Barras</label><input type="text" id="p-codigo"></div>
+                        <div class="form-group"><label>Nombre</label><input type="text" id="p-nombre"></div>
+                        <div class="form-group"><label>Precio ($)</label><input type="number" id="p-precio"></div>
+                        <div class="form-group"><label>Categoría</label><input type="text" id="p-cat"></div>
+                        <div class="form-group"><label>Stock</label><input type="number" id="p-stock"></div>
+                        <div class="form-group"><label>Imagen</label><input type="file" id="p-img" accept="image/*"></div>
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:10px">
+                        <button class="btn-agregar" onclick="guardarProducto()" id="btn-guardar">Guardar Producto</button>
+                        <button id="btn-cancelar" onclick="limpiarForm()" style="display:none;background:#eee;border:none;padding:10px 20px;border-radius:50px;cursor:pointer">Cancelar</button>
+                    </div>
+                </div>
+                <table class="admin-table">
+                    <thead><tr><th>Código</th><th>Producto</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr></thead>
+                    <tbody id="admin-lista-productos"></tbody>
+                </table>
+            </div>
+
+            <!-- TAB PEDIDOS -->
+            <div id="tab-pedidos" class="tab-content" style="display:none">
+                <div id="lista-pedidos-admin"></div>
+            </div>
+
+            <!-- TAB CONFIG & API -->
+            <div id="tab-config" class="tab-content" style="display:none">
+                <div style="max-width:500px;margin:auto">
+                    <h3>Identidad Visual</h3><br>
+                    <div class="form-group"><label>Nombre de la Tienda</label><input type="text" id="conf-nombre"></div>
+                    <div class="form-group"><label>WhatsApp Receptivo (Sin +)</label><input type="text" id="conf-tel"></div>
+                    
+                    <h3 style="margin-top:20px">Pasarela de Pagos (API)</h3><br>
+                    <p style="font-size:12px; color:var(--texto-suave); margin-bottom:10px">Ingresa el <b>Access Token</b> de Mercado Pago para recibir dinero en tu cuenta.</p>
+                    <div class="form-group"><label>Mercado Pago Access Token</label><input type="password" id="conf-token"></div>
+                    <div class="form-group"><label>CBU / Alias para Transferencia</label><input type="text" id="conf-alias"></div>
+                    
+                    <button class="btn-agregar" onclick="guardarConfig()">Guardar Ajustes de Cliente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CARRITO -->
+<div class="carrito-overlay" id="carrito-overlay" onclick="toggleCarrito()"></div>
+<div class="carrito-panel" id="carrito-panel">
+    <div style="padding:20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between">
+        <h3>Tu Pedido</h3><button onclick="toggleCarrito()" style="border:none;background:none;font-size:20px">✕</button>
+    </div>
+    <div id="carrito-items" style="flex:1;overflow-y:auto;padding:20px"></div>
+    <div style="padding:20px;background:var(--rosa-pale)">
+        <div style="display:flex;justify-content:space-between;font-weight:bold;margin-bottom:15px">
+            <span>Total:</span><span id="carrito-total">$ 0,00</span>
+        </div>
+        <button class="btn-agregar" onclick="irCheckout()" style="padding:15px">Confirmar y Pagar</button>
+    </div>
+</div>
+
+<!-- MODAL CHECKOUT -->
+<div class="modal-overlay" id="modal-checkout">
+    <div style="background:#fff;padding:30px;border-radius:20px;width:100%;max-width:400px;margin:auto">
+        <h3>Finalizar Compra</h3><br>
+        <form onsubmit="confirmarPedido(event)">
+            <div class="form-group"><label>Nombre del Cliente</label><input type="text" id="cli-nombre" required></div>
+            <div class="form-group">
+                <label>Método de Pago</label>
+                <select id="medio-pago">
+                    <option value="transferencia">Transferencia / Alias</option>
+                    <option value="mercadopago">Mercado Pago (Tarjeta/Dinero)</option>
+                    <option value="efectivo">Efectivo en Local</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-agregar" style="width:100%">Realizar Pedido</button>
+        </form>
+    </div>
+</div>
+
+<script>
+let productos = JSON.parse(localStorage.getItem('panal_prod') || '[]');
+let pedidos = JSON.parse(localStorage.getItem('panal_pedidos') || '[]');
+let config = JSON.parse(localStorage.getItem('panal_conf') || JSON.stringify({
+    nombre: 'Pañalera Bebé Feliz', tel: '5491100000000', alias: 'PAGO.BEBE', mpToken: ''
+}));
+let carrito = [];
+
+function init() {
+    document.getElementById('nav-nombre').innerHTML = config.nombre + '<span>Tienda Online</span>';
+    document.getElementById('conf-nombre').value = config.nombre;
+    document.getElementById('conf-tel').value = config.tel;
+    document.getElementById('conf-alias').value = config.alias;
+    document.getElementById('conf-token').value = config.mpToken || '';
+    renderCategorias();
+    renderProductos();
+}
+
+// LOGICA PRODUCTOS
+function guardarProducto() {
+    const editId = document.getElementById('edit-id').value;
+    const nombre = document.getElementById('p-nombre').value;
+    const precio = document.getElementById('p-precio').value;
+    const file = document.getElementById('p-img').files[0];
+
+    if(!nombre || !precio) return toast('Completa nombre y precio');
+
+    const procesar = (imgBase) => {
+        const datos = {
+            id: editId ? parseInt(editId) : Date.now(),
+            codigo: document.getElementById('p-codigo').value,
+            nombre,
+            precio: parseFloat(precio),
+            cat: document.getElementById('p-cat').value || 'Varios',
+            stock: parseInt(document.getElementById('p-stock').value) || 0,
+            img: imgBase || (editId ? productos.find(x => x.id == editId).img : null)
+        };
+
+        if(editId) {
+            const idx = productos.findIndex(p => p.id == editId);
+            productos[idx] = datos;
+            toast('Actualizado');
+        } else {
+            productos.unshift(datos);
+            toast('Creado');
+        }
+        localStorage.setItem('panal_prod', JSON.stringify(productos));
+        limpiarForm(); renderAdminProductos(); renderProductos(); renderCategorias();
+    };
+
+    if(file) {
+        const reader = new FileReader();
+        reader.onload = e => procesar(e.target.result);
+        reader.readAsDataURL(file);
+    } else procesar(null);
+}
+
+function prepararEdicion(id) {
+    const p = productos.find(x => x.id == id);
+    document.getElementById('edit-id').value = p.id;
+    document.getElementById('p-nombre').value = p.nombre;
+    document.getElementById('p-precio').value = p.precio;
+    document.getElementById('p-codigo').value = p.codigo || '';
+    document.getElementById('p-cat').value = p.cat;
+    document.getElementById('p-stock').value = p.stock;
+    document.getElementById('form-titulo').textContent = 'Editando: ' + p.nombre;
+    document.getElementById('btn-guardar').textContent = 'Guardar Cambios';
+    document.getElementById('btn-cancelar').style.display = 'block';
+    document.getElementById('form-contenedor').scrollIntoView();
+}
+
+function limpiarForm() {
+    document.getElementById('edit-id').value = '';
+    ['p-codigo','p-nombre','p-precio','p-cat','p-stock','p-img'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('form-titulo').textContent = 'Cargar Nuevo Producto';
+    document.getElementById('btn-guardar').textContent = 'Guardar Producto';
+    document.getElementById('btn-cancelar').style.display = 'none';
+}
+
+// PEDIDOS Y PAGOS
+function confirmarPedido(e) {
+    e.preventDefault();
+    const cliente = document.getElementById('cli-nombre').value;
+    const pago = document.getElementById('medio-pago').value;
+    const total = carrito.reduce((s,i) => s + (i.precio*i.cant), 0);
+    
+    const ped = { id:Date.now(), fecha:new Date().toLocaleString(), cliente, total, pago, items:[...carrito] };
+    pedidos.unshift(ped);
+    localStorage.setItem('panal_pedidos', JSON.stringify(pedidos));
+
+    let txtMP = pago === 'mercadopago' ? '%0A*PAGO SOLICITADO VIA API*' : '';
+    let msg = `*Pedido Pañalera*%0ACliente: ${cliente}%0A` + carrito.map(i => `- ${i.nombre} x${i.cant}`).join('%0A') + `%0ATotal: $${formatNum(total)}%0AMedio: ${pago}${txtMP}`;
+    
+    window.open(`https://wa.me/${config.tel}?text=${msg}`, '_blank');
+    carrito = []; actualizarCarrito(); cerrarModal('modal-checkout'); toast('🚀 Pedido Enviado');
+}
+
+function guardarConfig() {
+    config.nombre = document.getElementById('conf-nombre').value;
+    config.tel = document.getElementById('conf-tel').value;
+    config.alias = document.getElementById('conf-alias').value;
+    config.mpToken = document.getElementById('conf-token').value;
+    localStorage.setItem('panal_conf', JSON.stringify(config));
+    toast('⚙️ Configuración Guardada');
+    init();
+}
+
+// HELPERS
+function formatNum(n) { return Number(n).toLocaleString('es-AR', {minimumFractionDigits:2}); }
+function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.style.display='block'; setTimeout(()=>t.style.display='none',2000); }
+function toggleCarrito() { document.getElementById('carrito-panel').classList.toggle('abierto'); document.getElementById('carrito-overlay').style.display = document.getElementById('carrito-panel').classList.contains('abierto') ? 'block' : 'none'; }
+function abrirAdmin() { document.getElementById('admin-overlay').classList.add('visible'); }
+function cerrarAdmin() { document.getElementById('admin-overlay').classList.remove('visible'); }
+function abrirModal(id) { document.getElementById(id).classList.add('visible'); }
+function cerrarModal(id) { document.getElementById(id).classList.remove('visible'); }
+function loginAdmin() { if(document.getElementById('admin-pwd').value === 'admin123') { document.getElementById('admin-login').style.display = 'none'; document.getElementById('admin-main').style.display = 'block'; renderAdminProductos(); } }
+function showTab(id, btn) { document.querySelectorAll('.tab-content').forEach(c => c.style.display='none'); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); document.getElementById(id).style.display='block'; btn.classList.add('active'); if(id==='tab-pedidos') renderPedidosAdmin(); }
+function agregarCarrito(id) { const p = productos.find(x => x.id==id); const ex = carrito.find(x => x.id==id); if(ex) ex.cant++; else carrito.push({...p, cant:1}); actualizarCarrito(); toast('Añadido 🛒'); }
+function actualizarCarrito() { document.getElementById('badge').textContent = carrito.reduce((s,i)=>s+i.cant,0); document.getElementById('carrito-total').textContent = '$ ' + formatNum(carrito.reduce((s,i)=>s+(i.precio*i.cant),0)); document.getElementById('carrito-items').innerHTML = carrito.map(i => `<div style="padding:10px 0;border-bottom:1px solid #eee;display:flex;justify-content:space-between"><span>${i.nombre} x${i.cant}</span><button onclick="quitarCarrito(${i.id})" style="border:none;background:none">🗑️</button></div>`).join(''); }
+function quitarCarrito(id) { carrito = carrito.filter(i => i.id !== id); actualizarCarrito(); }
+function renderProductos(filtrados = null) {
+    const lista = filtrados || productos;
+    document.getElementById('productos-grid').innerHTML = lista.map(p => `
+        <div class="producto-card">
+            <div class="producto-img">${p.img ? `<img src="${p.img}">` : '🍼'}</div>
+            <div class="producto-body">
+                <small>${p.codigo || ''}</small>
+                <div style="font-weight:600;height:40px;overflow:hidden">${p.nombre}</div>
+                <div style="font-size:20px;color:var(--rosa-dark);margin:10px 0">$ ${formatNum(p.precio)}</div>
+                <button class="btn-agregar" onclick="agregarCarrito(${p.id})">Añadir</button>
+            </div>
+        </div>
+    `).join('');
+}
+function renderAdminProductos() {
+    document.getElementById('admin-lista-productos').innerHTML = productos.map(p => `<tr><td>${p.codigo||'-'}</td><td>${p.nombre}</td><td>$${formatNum(p.precio)}</td><td>${p.stock}</td><td><button class="btn-edit" onclick="prepararEdicion(${p.id})">Editar</button> <button class="btn-del" onclick="eliminarP(${p.id})">🗑️</button></td></tr>`).join('');
+}
+function eliminarP(id) { if(confirm('¿Borrar?')) { productos = productos.filter(p => p.id !== id); localStorage.setItem('panal_prod', JSON.stringify(productos)); renderAdminProductos(); renderProductos(); } }
+function renderPedidosAdmin() { document.getElementById('lista-pedidos-admin').innerHTML = pedidos.map(p => `<div style="background:#f8f9fa;padding:15px;border-radius:10px;margin-bottom:10px;border:1px solid #eee"><b>${p.cliente}</b> - ${p.fecha}<br><small>${p.pago.toUpperCase()}</small><br><b>$ ${formatNum(p.total)}</b></div>`).join('') || 'Sin pedidos.'; }
+function irCheckout() { if(carrito.length) abrirModal('modal-checkout'); }
+function renderCategorias() { const cats = ['Todos', ...new Set(productos.map(p => p.cat))]; document.getElementById('cats-grid').innerHTML = cats.map(c => `<div class="cat-pill" onclick="renderProductos(productos.filter(p => p.cat === '${c}'))">${c}</div>`).join(''); }
+function buscarProductos() { const t = document.getElementById('buscador').value.toLowerCase(); renderProductos(productos.filter(p => p.nombre.toLowerCase().includes(t) || (p.codigo && p.codigo.includes(t)))); }
+
+init();
+</script>
+</body>
+</html>
